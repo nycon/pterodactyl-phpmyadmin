@@ -47,15 +47,27 @@ if ! grep -q "TempDir" config.inc.php; then
   echo "\$cfg['TempDir'] = '/tmp/';" | sudo tee -a config.inc.php > /dev/null
 fi
 
-echo "Checking MySQL root password status..."
-IS_EMPTY=$(sudo mysql -sse "SELECT IF(authentication_string = '' OR authentication_string IS NULL, 'YES', 'NO') FROM mysql.user WHERE user = 'root' AND host = 'localhost';")
+# MySQL root password check and setting
+echo "Please enter current MySQL root password (leave blank if none is set):"
+read -s CURRENT_MYSQL_PASSWORD
+
+if [ -z "$CURRENT_MYSQL_PASSWORD" ]; then
+    MYSQL_CMD="mysql -u root"
+else
+    MYSQL_CMD="mysql -u root -p$CURRENT_MYSQL_PASSWORD"
+fi
+
+IS_EMPTY=$($MYSQL_CMD -sse "SELECT IF(authentication_string = '' OR authentication_string IS NULL, 'YES', 'NO') FROM mysql.user WHERE user = 'root' AND host = 'localhost';" 2>/dev/null || echo "ERROR")
 
 if [ "$IS_EMPTY" = "YES" ]; then
-  echo "Setting MySQL root password..."
-  sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$MYSQL_ROOT_PASSWORD'); FLUSH PRIVILEGES;"
-  echo "MySQL root password has been set."
+    echo "Setting MySQL root password..."
+    $MYSQL_CMD -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$MYSQL_ROOT_PASSWORD'); FLUSH PRIVILEGES;"
+    echo "MySQL root password has been set."
+elif [ "$IS_EMPTY" = "NO" ]; then
+    echo "MySQL root already has a password. Skipping."
 else
-  echo "MySQL root already has a password. Skipping."
+    echo "ERROR: Unable to check MySQL root status. Check your credentials or access permissions."
+    exit 1
 fi
 
 echo "Cleaning up temporary files..."
