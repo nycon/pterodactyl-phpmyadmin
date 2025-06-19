@@ -83,5 +83,6 @@ If needed, adjust your web server configuration (Nginx/Apache) to allow access t
 
 ---
 
-**Author**: nycon 
+**Author**: nycon
+
 **License**: MIT  
